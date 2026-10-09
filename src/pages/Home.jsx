@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../AuthContext'
+import { useSharedList } from '../SharedListContext'
 import { searchMovies, posterUrl } from '../tmdb'
 
 export default function Home() {
   const { user, signOut } = useAuth()
+  const { list, loading: listLoading } = useSharedList()
+  const navigate = useNavigate()
+
   const [movies, setMovies] = useState([])
   const [title, setTitle] = useState('')
   const [results, setResults] = useState([])
@@ -13,11 +18,18 @@ export default function Home() {
   const [spinning, setSpinning] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // If no list, push user to onboarding
+  useEffect(() => {
+    if (!listLoading && !list) navigate('/onboarding')
+  }, [list, listLoading, navigate])
+
   async function loadMovies() {
+    if (!list) return
     setLoading(true)
     const { data, error } = await supabase
       .from('movies')
       .select('*')
+      .eq('list_id', list.id)
       .order('created_at', { ascending: false })
     if (!error) setMovies(data ?? [])
     setLoading(false)
@@ -25,17 +37,15 @@ export default function Home() {
 
   useEffect(() => {
     loadMovies()
-  }, [])
+  }, [list?.id])
 
   // Debounced live search
   useEffect(() => {
     const q = title.trim()
-
     if (q.length < 2) {
       setResults([])
       return
     }
-
     setSearching(true)
     const timeout = setTimeout(async () => {
       try {
@@ -47,11 +57,9 @@ export default function Home() {
       }
       setSearching(false)
     }, 300)
-
     return () => clearTimeout(timeout)
   }, [title])
 
-  // Immediate search on form submit (Enter or Search button)
   async function handleSubmit(e) {
     e.preventDefault()
     const q = title.trim()
@@ -68,11 +76,13 @@ export default function Home() {
   }
 
   async function addMovieFromTmdb(movie) {
+    if (!list) return
     const { error } = await supabase.from('movies').insert({
       title: movie.title,
       poster_path: movie.poster_path ?? null,
       tmdb_id: movie.id,
       user_id: user.id,
+      list_id: list.id,
     })
     if (!error) {
       setTitle('')
@@ -103,10 +113,14 @@ export default function Home() {
     }, 80)
   }
 
+  if (listLoading) {
+    return <div className="container"><p className="empty">Loading...</p></div>
+  }
+
   return (
     <div className="container">
       <div className="header">
-        <h1>🎬 MovieApp</h1>
+        <h1>🎬 {list?.name || 'MovieApp'}</h1>
         <button onClick={signOut} className="logout">Log out</button>
       </div>
 
