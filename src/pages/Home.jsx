@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../AuthContext'
+import { searchMovies, posterUrl } from '../tmdb'
 
 export default function Home() {
   const { user, signOut } = useAuth()
   const [movies, setMovies] = useState([])
   const [title, setTitle] = useState('')
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState(null)
   const [spinning, setSpinning] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -24,15 +27,56 @@ export default function Home() {
     loadMovies()
   }, [])
 
-  async function addMovie(e) {
+  // Debounced live search
+  useEffect(() => {
+    const q = title.trim()
+
+    if (q.length < 2) {
+      setResults([])
+      return
+    }
+
+    setSearching(true)
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await searchMovies(q)
+        setResults(res.slice(0, 6))
+      } catch (err) {
+        console.error(err)
+        setResults([])
+      }
+      setSearching(false)
+    }, 300)
+
+    return () => clearTimeout(timeout)
+  }, [title])
+
+  // Immediate search on form submit (Enter or Search button)
+  async function handleSubmit(e) {
     e.preventDefault()
-    const trimmed = title.trim()
-    if (!trimmed) return
-    const { error } = await supabase
-      .from('movies')
-      .insert({ title: trimmed, user_id: user.id })
+    const q = title.trim()
+    if (q.length < 2) return
+    setSearching(true)
+    try {
+      const res = await searchMovies(q)
+      setResults(res.slice(0, 6))
+    } catch (err) {
+      console.error(err)
+      setResults([])
+    }
+    setSearching(false)
+  }
+
+  async function addMovieFromTmdb(movie) {
+    const { error } = await supabase.from('movies').insert({
+      title: movie.title,
+      poster_path: movie.poster_path ?? null,
+      tmdb_id: movie.id,
+      user_id: user.id,
+    })
     if (!error) {
       setTitle('')
+      setResults([])
       loadMovies()
     }
   }
@@ -68,14 +112,39 @@ export default function Home() {
 
       <p className="user-line">Logged in as {user?.email}</p>
 
-      <form onSubmit={addMovie} className="add-form">
+      <form onSubmit={handleSubmit} className="add-form">
         <input
           value={title}
           onChange={e => setTitle(e.target.value)}
-          placeholder="Add a movie..."
+          placeholder="Search a movie title..."
         />
-        <button type="submit">Add</button>
+        <button type="submit" disabled={searching}>
+          {searching ? '...' : 'Search'}
+        </button>
       </form>
+
+      {results.length > 0 && (
+        <div className="results">
+          {results.map(m => (
+            <button
+              key={m.id}
+              onClick={() => addMovieFromTmdb(m)}
+              className="result-item"
+              type="button"
+            >
+              {m.poster_path ? (
+                <img src={posterUrl(m.poster_path)} alt="" />
+              ) : (
+                <div className="result-no-poster">No image</div>
+              )}
+              <div className="result-info">
+                <strong>{m.title}</strong>
+                <span>{m.release_date?.slice(0, 4) || '—'}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="roulette-box">
         {selected ? (
@@ -83,7 +152,14 @@ export default function Home() {
             key={selected.id + Math.random()}
             className={`movie-card ${spinning ? 'spinning' : 'winner'}`}
           >
-            {selected.title}
+            {selected.poster_path && (
+              <img
+                src={posterUrl(selected.poster_path)}
+                alt=""
+                className="winner-poster"
+              />
+            )}
+            <span>{selected.title}</span>
           </div>
         ) : (
           <div className="movie-card placeholder">
@@ -104,10 +180,13 @@ export default function Home() {
       <ul className="movie-list">
         {loading && <p className="empty">Loading...</p>}
         {!loading && movies.length === 0 && (
-          <p className="empty">No movies yet. Add one above.</p>
+          <p className="empty">No movies yet. Search above to add one.</p>
         )}
         {movies.map(m => (
           <li key={m.id}>
+            {m.poster_path && (
+              <img src={posterUrl(m.poster_path)} alt="" className="list-poster" />
+            )}
             <span>{m.title}</span>
             <button onClick={() => removeMovie(m.id)}>✕</button>
           </li>

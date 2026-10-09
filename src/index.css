@@ -166,3 +166,76 @@ body {
   margin-top: 20px;
   font-size: 0.9rem;
 }
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: #1e1e3a;
+  border: 1px solid #2a2a4a;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  color: #eee;
+  transition: 0.15s;
+}
+.result-item:hover {
+  background: #25254a;
+  border-color: #6c5ce7;
+}
+.result-item img,
+.result-no-poster {
+  width: 48px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+  background: #0f0f22;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: #666;
+}
+
+.result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.result-info strong { font-size: 0.95rem; }
+.result-info span { font-size: 0.8rem; color: #888; }
+
+.movie-card {
+  flex-direction: column;
+  gap: 12px;
+}
+.winner-poster {
+  max-height: 240px;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.movie-list li {
+  gap: 12px;
+}
+.movie-list li span {
+  flex: 1;
+}
+.list-poster {
+  width: 32px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
