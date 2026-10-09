@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useSharedList } from '../SharedListContext'
 import { useAuth } from '../AuthContext'
 
 export default function Onboarding() {
-  const { createList, list } = useSharedList()
+  const { createList, list, refresh } = useSharedList()
   const { signOut } = useAuth()
+  const navigate = useNavigate()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -16,7 +18,12 @@ export default function Onboarding() {
     setBusy(false)
   }
 
-  // List just created — show the code for your partner
+  async function handleContinue() {
+    // Refresh the shared list in context, then navigate
+    await refresh()
+    navigate('/')
+  }
+
   if (list) {
     return (
       <div className="onboarding">
@@ -26,7 +33,7 @@ export default function Onboarding() {
         <p className="hint">
           They'll sign up, then enter this code on their onboarding screen.
         </p>
-        <button className="primary" onClick={() => window.location.reload()}>
+        <button className="primary" onClick={handleContinue}>
           Continue to Movies
         </button>
       </div>
